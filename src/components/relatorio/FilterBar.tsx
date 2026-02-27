@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Search, SlidersHorizontal, Calendar, Building2, ChevronDown, Check, MapPin } from "lucide-react";
 import type { Unidade } from "@/types";
+import { MESES_COMPLETOS } from "@/lib/utils";
 
 interface FilterBarProps {
   unidades: Unidade[];
@@ -14,6 +15,167 @@ interface FilterBarProps {
   onDataFimChange: (value: string) => void;
   onSubmit: () => void;
   loading: boolean;
+}
+
+// Gera lista de anos disponíveis (2020 até ano atual + 1)
+const currentYear = new Date().getFullYear();
+const ANOS = Array.from({ length: currentYear - 2020 + 2 }, (_, i) => 2020 + i).reverse();
+
+function CustomDateSelect({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string; // formato "YYYY-MM-DD"
+  onChange: (value: string) => void;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  // Extrai ano e mês do valor atual
+  const parts = value ? value.split("-") : [];
+  const selectedYear = parts[0] ? parseInt(parts[0]) : null;
+  const selectedMonth = parts[1] ? parseInt(parts[1]) : null;
+
+  const displayLabel =
+    selectedYear && selectedMonth
+      ? `${MESES_COMPLETOS[selectedMonth - 1]} / ${selectedYear}`
+      : "Selecione...";
+
+  function selectDate(year: number, month: number) {
+    const mm = String(month).padStart(2, "0");
+    // Usa dia 01 para início, 28 para fim (seguro para qualquer mês)
+    const dd = label.toLowerCase().includes("início") ? "01" : "28";
+    onChange(`${year}-${mm}-${dd}`);
+    setIsOpen(false);
+  }
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  return (
+    <div ref={ref} className="relative w-full">
+      {/* Trigger */}
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className={`w-full flex items-center justify-between gap-2 px-4 py-3 bg-slate-50 border rounded-xl text-sm transition-all cursor-pointer hover:border-slate-300 ${
+          isOpen
+            ? "bg-white border-teal-500 ring-4 ring-teal-500/10"
+            : "border-slate-200"
+        }`}
+      >
+        <div className="flex items-center gap-2">
+          <Calendar className={`w-4 h-4 ${isOpen ? "text-teal-500" : "text-slate-400"}`} />
+          <span className={value ? "text-slate-900" : "text-slate-400"}>{displayLabel}</span>
+        </div>
+        <ChevronDown
+          className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${
+            isOpen ? "rotate-180 text-teal-500" : ""
+          }`}
+        />
+      </button>
+
+      {/* Dropdown */}
+      {isOpen && (
+        <div className="absolute z-50 mt-2 w-full bg-white rounded-xl border border-slate-200 shadow-xl shadow-slate-200/50 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-150">
+          {/* Header */}
+          <div className="px-4 py-2.5 bg-linear-to-r from-slate-50 to-white border-b border-slate-100">
+            <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+              Selecione o período
+            </p>
+          </div>
+
+          <div className="flex divide-x divide-slate-100">
+            {/* Coluna de Anos */}
+            <div className="w-1/3 shrink-0">
+              <div className="px-3 py-2 bg-slate-50/60 border-b border-slate-100">
+                <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Ano</p>
+              </div>
+              <div className="max-h-52 overflow-y-auto">
+                {ANOS.map((year) => {
+                  const isSelected = year === selectedYear;
+                  return (
+                    <button
+                      key={year}
+                      type="button"
+                      onClick={() => {
+                        if (selectedMonth) {
+                          selectDate(year, selectedMonth);
+                        } else {
+                          // Só muda o ano mantendo o mês, ou seleciona janeiro por padrão
+                          const mm = selectedMonth ?? 1;
+                          const dd = label.toLowerCase().includes("início") ? "01" : "28";
+                          onChange(`${year}-${String(mm).padStart(2, "0")}-${dd}`);
+                          // Não fecha — deixa o usuário escolher o mês também
+                        }
+                      }}
+                      className={`w-full flex items-center justify-between px-3 py-2.5 text-sm transition-all ${
+                        isSelected
+                          ? "bg-teal-50 text-teal-700 font-semibold"
+                          : "text-slate-600 hover:bg-slate-50"
+                      }`}
+                    >
+                      <span>{year}</span>
+                      {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-teal-500" />}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Coluna de Meses */}
+            <div className="flex-1">
+              <div className="px-3 py-2 bg-slate-50/60 border-b border-slate-100">
+                <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Mês</p>
+              </div>
+              <div className="max-h-52 overflow-y-auto">
+                {MESES_COMPLETOS.map((mes, idx) => {
+                  const monthNum = idx + 1;
+                  const isSelected = monthNum === selectedMonth;
+                  return (
+                    <button
+                      key={mes}
+                      type="button"
+                      onClick={() => {
+                        const year = selectedYear ?? currentYear;
+                        selectDate(year, monthNum);
+                      }}
+                      className={`w-full flex items-center justify-between gap-2 px-3 py-2.5 text-sm transition-all ${
+                        isSelected
+                          ? "bg-teal-50 text-teal-700 font-semibold"
+                          : "text-slate-600 hover:bg-slate-50"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className={`text-[10px] font-mono w-4 ${isSelected ? "text-teal-400" : "text-slate-300"}`}>
+                          {String(monthNum).padStart(2, "0")}
+                        </span>
+                        <span>{mes}</span>
+                      </div>
+                      {isSelected && (
+                        <div className="w-5 h-5 rounded-full bg-teal-500 flex items-center justify-center shrink-0">
+                          <Check className="w-3 h-3 text-white" />
+                        </div>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 function CustomSelect({
@@ -206,11 +368,10 @@ export function FilterBar({
                 <Calendar className="w-3.5 h-3.5" />
                 Data Início
               </label>
-              <input
-                type="date"
+              <CustomDateSelect
+                label="início"
                 value={dataInicio}
-                onChange={(e) => onDataInicioChange(e.target.value)}
-                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 focus:outline-none focus:bg-white focus:border-teal-500 focus:ring-4 focus:ring-teal-500/10 transition-all hover:border-slate-300"
+                onChange={onDataInicioChange}
               />
             </div>
 
@@ -220,11 +381,10 @@ export function FilterBar({
                 <Calendar className="w-3.5 h-3.5" />
                 Data Fim
               </label>
-              <input
-                type="date"
+              <CustomDateSelect
+                label="fim"
                 value={dataFim}
-                onChange={(e) => onDataFimChange(e.target.value)}
-                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 focus:outline-none focus:bg-white focus:border-teal-500 focus:ring-4 focus:ring-teal-500/10 transition-all hover:border-slate-300"
+                onChange={onDataFimChange}
               />
             </div>
 
