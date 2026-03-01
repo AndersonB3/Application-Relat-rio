@@ -1,10 +1,21 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import type { DadosRelatorio } from "@/types";
-import { MonthlyChart } from "@/components/charts/MonthlyChart";
-import { AgeChart } from "@/components/charts/AgeChart";
-import { TimeChart } from "@/components/charts/TimeChart";
 import { BarChart3, Users, Clock, PieChart, TrendingUp } from "lucide-react";
+
+const MonthlyChart = dynamic(
+  () => import("@/components/charts/MonthlyChart").then((m) => m.MonthlyChart),
+  { ssr: false }
+);
+const AgeChart = dynamic(
+  () => import("@/components/charts/AgeChart").then((m) => m.AgeChart),
+  { ssr: false }
+);
+const TimeChart = dynamic(
+  () => import("@/components/charts/TimeChart").then((m) => m.TimeChart),
+  { ssr: false }
+);
 
 interface ChartsGridProps {
   dados: DadosRelatorio | null;
